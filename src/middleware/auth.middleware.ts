@@ -1,38 +1,15 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
-import Redis from 'ioredis'
-import { createClient } from '@supabase/supabase-js'
 import { config } from '../config/config'
 
-const redis = new Redis({
-    host: config.redis.host,
-    port: config.redis.port,
-    retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000)
-        return delay
-    },
-    maxRetriesPerRequest: 3
-})
+interface User {
+    user_id: string
+    role_id: string
+    username: string
+}
 
-redis.on('error', (err) => {
-    console.error('Redis Client Error:', config.redis.host, config.redis.port, err)
-    console.log('Redis Client Error:', err)
-})
-
-redis.on('connect', () => {
-    console.log('Redis Client Connected')
-})
-const supabase = createClient(
-    config.supabase.url,
-    config.supabase.anonKey
-)
 interface AuthenticatedRequest extends Request {
-    user?: {
-        user_id: string
-        role_id: string
-        username: string
-    }
-    supabase?: typeof supabase
+    user?: User
 }
 
 export const authenticate = async (
@@ -48,31 +25,30 @@ export const authenticate = async (
 
         const token = authHeader.split(' ')[1]
 
-        // Verify with Supabase
-        const { data: { user }, error } = await supabase.auth.getUser(token)
+        // Verify token
+        const decoded = jwt.verify(token, config.jwt.secret) as User
+
+        // Check user existence in Redis
+        const userKey = `user:${decoded.user_id}`
+        const user = await config.redis.client.get(userKey)
         
-        if (error || !user) {
+        if (!user) {
             return res.status(401).json({ message: 'Invalid token' })
         }
 
-        const decoded = jwt.verify(token, config.jwt.secret) as {
-            user_id: string
-            role_id: string
-            username: string
-        }
+        // Rate limiting
+        const apiUsageKey = `api_usage:${decoded.user_id}`
+        const apiUsage = await config.redis.client.get(apiUsageKey)
+        const usage = apiUsage ? parseInt(apiUsage as string) : 0
 
-        const apiUsage = await redis.get(`api_usage:${decoded.user_id}`)
-        const usage = apiUsage ? parseInt(apiUsage) : 0
-
-        await redis.incr(`api_usage:${decoded.user_id}`)
-        await redis.expire(`api_usage:${decoded.user_id}`, 24 * 60 * 60)
+        await config.redis.client.incr(apiUsageKey)
+        await config.redis.client.expire(apiUsageKey, 24 * 60 * 60)
 
         if (usage > config.api.rateLimit) {
             return res.status(429).json({ message: 'API rate limit exceeded' })
         }
 
         req.user = decoded
-        req.supabase = supabase
         next()
     } catch (error) {
         return res.status(401).json({ message: 'Invalid token' })
@@ -93,4 +69,17 @@ export const checkRole = (allowedRoles: string[]) => {
 
         next()
     }
+}
+
+// Token generation utility
+export const generateToken = (user: User) => {
+    return jwt.sign(
+        { 
+            user_id: user.user_id, 
+            role_id: user.role_id, 
+            username: user.username 
+        }, 
+        config.jwt.secret, 
+        { expiresIn: '1d' }
+    )
 }

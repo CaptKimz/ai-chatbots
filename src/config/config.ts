@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Redis } from '@upstash/redis'
 
 const envSchema = z.object({
     NODE_ENV: z
@@ -11,14 +12,37 @@ const envSchema = z.object({
     DB_NAME: z.string().min(1),
     PORT: z.string().default('3000').transform(Number),
     JWT_SECRET: z.string().min(1),
-    REDIS_HOST: z.string().default('localhost'),
-    REDIS_PORT: z.string().default('6379').transform(Number),
+    UPSTASH_REDIS_REST_URL: z.string().min(1),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
     API_RATE_LIMIT: z.string().default('1000').transform(Number),
-    SUPABASE_URL: z.string().min(1),
-    SUPABASE_ANON_KEY: z.string().min(1),
 })
 
 const env = envSchema.parse(process.env)
+
+// Initialize Upstash Redis with connection logging
+export const redis = new Redis({
+    url: env.UPSTASH_REDIS_REST_URL,
+    token: env.UPSTASH_REDIS_REST_TOKEN,
+})
+
+// Verify Redis connection
+let connectionVerified = false
+async function verifyRedisConnection() {
+    // Prevent multiple verification logs
+    if (connectionVerified) return true
+
+    try {
+        // Attempt a simple ping operation
+        await redis.ping()
+        console.log('✅ Redis Connection: Successful')
+        connectionVerified = true
+        return true
+    } catch (error) {
+        console.error('❌ Redis Connection: Failed', error)
+        connectionVerified = false
+        return false
+    }
+}
 
 export const config = {
     environment: env.NODE_ENV,
@@ -36,14 +60,10 @@ export const config = {
         secret: env.JWT_SECRET,
     },
     redis: {
-        host: env.REDIS_HOST,
-        port: env.REDIS_PORT,
+        client: redis,
+        verifyConnection: verifyRedisConnection
     },
     api: {
         rateLimit: env.API_RATE_LIMIT,
-    },
-    supabase: {
-        url: env.SUPABASE_URL,
-        anonKey: env.SUPABASE_ANON_KEY,
     },
 } as const
