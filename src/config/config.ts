@@ -10,6 +10,10 @@ const envSchema = z.object({
     DB_PASSWORD: z.string().min(1),
     DB_NAME: z.string().min(1),
     PORT: z.string().default('3000').transform(Number),
+    JWT_SECRET: z.string().min(1),
+    REDIS_HOST: z.string().default('localhost'),
+    REDIS_PORT: z.string().default('6379').transform(Number),
+    API_RATE_LIMIT: z.string().default('1000').transform(Number),
 })
 
 const env = envSchema.parse(process.env)
@@ -25,5 +29,15 @@ export const config = {
     },
     server: {
         port: env.PORT,
+    },
+    jwt: {
+        secret: env.JWT_SECRET,
+    },
+    redis: {
+        host: env.REDIS_HOST,
+        port: env.REDIS_PORT,
+    },
+    api: {
+        rateLimit: env.API_RATE_LIMIT,
     },
 } as const
