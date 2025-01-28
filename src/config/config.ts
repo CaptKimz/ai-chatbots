@@ -14,6 +14,8 @@ const envSchema = z.object({
     REDIS_HOST: z.string().default('localhost'),
     REDIS_PORT: z.string().default('6379').transform(Number),
     API_RATE_LIMIT: z.string().default('1000').transform(Number),
+    SUPABASE_URL: z.string().min(1),
+    SUPABASE_ANON_KEY: z.string().min(1),
 })
 
 const env = envSchema.parse(process.env)
@@ -39,5 +41,9 @@ export const config = {
     },
     api: {
         rateLimit: env.API_RATE_LIMIT,
+    },
+    supabase: {
+        url: env.SUPABASE_URL,
+        anonKey: env.SUPABASE_ANON_KEY,
     },
 } as const
