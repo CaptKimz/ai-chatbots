@@ -4,6 +4,7 @@ import { UserRepository } from '../repositories/user.repository'
 import { UserCreateSchema } from '../validators/user.validator'
 import { ZodError } from 'zod'
 
+
 export class UsersHandler {
     private readonly userService: UserService
 
@@ -11,16 +12,19 @@ export class UsersHandler {
         this.userService = new UserService(new UserRepository())
     }
 
+    
     public getAllUsers = async (req: Request, res: Response) => {
         const users = await this.userService.getAllUsers()
         res.json(users)
     }
+
 
     public getUserById = async (req: Request, res: Response) => {
         const user = await this.userService.getUserById(req.params.id)
         res.json(user)
     }
 
+   
     public createUser = async (req: Request, res: Response) => {
         try {
             const validatedData = UserCreateSchema.parse(req.body)
@@ -44,6 +48,7 @@ export class UsersHandler {
         )
         res.json(updatedUser)
     }
+
 
     public deleteUser = async (req: Request, res: Response) => {
         await this.userService.deleteUser(req.params.id)

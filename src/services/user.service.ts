@@ -15,7 +15,7 @@ export class UserService implements IUserService {
     async getAllUsers(): Promise<User[]> {
         return this.userRepository.findAll()
     }
-
+    
     async getUserById(id: string): Promise<User | null> {
         if (!id) throw new Error('User ID is required')
         return this.userRepository.findById(id)

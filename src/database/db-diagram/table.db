@@ -1,0 +1,135 @@
+-- Create users table
+CREATE TABLE users (
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    last_login TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create conversations table
+CREATE TABLE conversations (
+    conversation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    title VARCHAR(255),
+    is_favorite BOOLEAN,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create questions table
+CREATE TABLE questions (
+    question_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL REFERENCES conversations(conversation_id),
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create answers table
+CREATE TABLE answers (
+    answer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    question_id UUID NOT NULL REFERENCES questions(question_id),
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create ai_models table (optional)
+CREATE TABLE ai_models (
+    model_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add model_id to answers (optional, if tracking AI models)
+ALTER TABLE answers
+ADD COLUMN model_id UUID REFERENCES ai_models(model_id);
+
+-- Create feedback table
+CREATE TABLE feedback (
+    feedback_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    answer_id UUID NOT NULL REFERENCES answers(answer_id),
+    rating INT CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create conversation_metadata table
+CREATE TABLE conversation_metadata (
+    conversation_id UUID PRIMARY KEY REFERENCES conversations(conversation_id),
+    status VARCHAR(50) CHECK (status IN ('active', 'completed')) DEFAULT 'active',
+    duration INT, -- Duration in seconds
+    topic VARCHAR(255),
+    last_message_at TIMESTAMPTZ
+);
+
+-- Create messages table (optional, combines questions and answers)
+CREATE TABLE messages (
+    message_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL REFERENCES conversations(conversation_id),
+    user_id UUID REFERENCES users(user_id),
+    is_user BOOLEAN NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create attachments table (optional)
+CREATE TABLE attachments (
+    attachment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    message_id UUID NOT NULL REFERENCES messages(message_id),
+    file_path VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create audit_logs table
+CREATE TABLE audit_logs (
+    log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type VARCHAR(255) NOT NULL,
+    details TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create tags table (optional, for tagging conversations)
+CREATE TABLE tags (
+    tag_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL REFERENCES conversations(conversation_id),
+    tag_name VARCHAR(255) NOT NULL
+);
+
+-- Create user_roles Table
+CREATE TABLE user_roles (
+    role_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    role_name VARCHAR(50) NOT NULL UNIQUE, -- e.g., 'admin', 'user', etc.
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add role_id to users Table
+ALTER TABLE users
+ADD COLUMN role_id UUID NOT NULL REFERENCES user_roles(role_id);
+
+-- Create documents Table
+CREATE TABLE documents (
+    document_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(user_id), -- Uploaded by
+    version VARCHAR(50) NOT NULL DEFAULT '1.0', -- Version number as string
+    rag_status BOOLEAN DEFAULT FALSE, -- Flag to indicate if the document is used in RAG workflows
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create document_versions Table (optional, for detailed versioning)
+CREATE TABLE document_versions (
+    version_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID NOT NULL REFERENCES documents(document_id),
+    version VARCHAR(50) NOT NULL, -- Version number as string
+    file_name VARCHAR(255) NOT NULL, -- Original file name
+    file_path VARCHAR(255) NOT NULL, -- Path to the file
+    file_type VARCHAR(50) NOT NULL, -- e.g., 'pdf', 'docx'
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Example: Populate user_roles Table
+INSERT INTO user_roles (role_name) VALUES ('admin'), ('user');
