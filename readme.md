@@ -35,11 +35,11 @@ bun run start
 ## API Documentation
 
 ### Swagger UI
-Interactive API documentation is available at `/api/docs` when the server is running.
+Interactive API documentation is available at `/api-docs` when the server is running.
 
 To view the API documentation:
 1. Start the server
-2. Navigate to `http://localhost:3000/api/docs` in your browser
+2. Navigate to `http://localhost:3000/api-docs` in your browser
 3. Explore the available endpoints, request/response schemas, and try out the API directly from the Swagger UI
 
 ### Users Endpoints
